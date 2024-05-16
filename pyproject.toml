@@ -6,6 +6,7 @@ dynamic = ["version"]
 dependencies = [
     "jax >=0.4.0, <1.0.0",
     "gymnasium >=0.26.0, <1.0.0",
+    "jaxtyping",
     "numpy >=1.21.0, <2.0.0",
     "safetensors >=0.4.0, <1.0.0",
     "tensorboard",
@@ -37,3 +38,9 @@ email = "ian.dahlstrom@gmail.com"
 [build-system]
 requires = ["setuptools>=61.0", "setuptools_scm>=8.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.mypy]
+disable_error_code = "name-defined"
+
+[tool.ruff.lint]
+ignore = ["F722", "F821"]
