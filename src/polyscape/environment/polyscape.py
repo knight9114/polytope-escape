@@ -116,7 +116,7 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
         rng = self.get_jax_rng_key()
         ki, kd = jax.random.split(rng, 2)
 
-        idx = jax.random.choice(ki, self._p_alpha)
+        idx = jax.random.choice(ki, self._p_alpha.shape[0], p=self._p_alpha)
         alphas = self._alphas[idx, :]
         dist = jax.random.dirichlet(kd, alphas, dtype=self._dtype)
         goal = (self._max_dist - self._min_dist) * (1 - dist) + self._min_dist
@@ -139,17 +139,17 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
         self._t += 1
         step = self.get_step_size()
         delta = jax.nn.one_hot(action, self._n, dtype=self._dtype) * step
-        self._state = self._state + delta
+        self._state = (self._state[-1] + delta,)
 
         done, truncate = self.get_is_finished()
         reward = self.get_reward(action, done, truncate)
         info = {
             "step": self._t,
-            "distances": self._goal - self._state,
-            "optimal-move": jnp.argmin(self._goal - self._state),
+            "distances": self._goal - self._state[-1],
+            "optimal-move": jnp.argmin(self._goal - self._state[-1]),
         }
 
-        return (self._state,), reward, done, truncate, info
+        return self._state, reward, done, truncate, info
 
     def render(self):
         raise NotImplementedError
@@ -175,7 +175,7 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
         if trunc:
             return self._fail_reward
 
-        was_optimal = action == jnp.argmin(self._goal - self._state)
+        was_optimal = action == jnp.argmin(self._goal - self._state[-1])
         match self._reward_method:
             case "nonzero":
                 return -1 * self._step_reward
@@ -199,7 +199,7 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
 
     def get_is_finished(self) -> tuple[bool, bool]:
         done, trunc = False, False
-        if jnp.any(self._state >= self._goal):
+        if jnp.any(self._state[-1] >= self._goal):
             done = True
 
         if not done and self._t > self._deadline:

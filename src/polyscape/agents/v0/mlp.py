@@ -44,8 +44,8 @@ def actor_critic_agent_init(
     bias_initializer: Initializer | None = None,
 ) -> tuple[PyTree[Float[Array, "..."], "A"], ActorCriticForwardFn]:
     *kstack, kpi, kq = jax.random.split(rng, 1 + n_hidden_layers + 2)
-    d_obs = (math.prod(observation_shape),)
-    dims = (d_obs,) + (d_hidden_layers,) * n_hidden_layers
+    d_obs = math.prod(observation_shape)
+    dims = (d_obs, d_hidden_layers) + (d_hidden_layers,) * n_hidden_layers
     init_layer = partial(
         linear_layer_init,
         use_bias=use_bias,
