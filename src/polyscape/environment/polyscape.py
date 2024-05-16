@@ -20,15 +20,16 @@ from gymnasium import spaces
 import numpy as np
 import jax
 from jax import numpy as jnp
-from jaxtyping import Array, DTypeLike, Float, Int, PRNGKeyArray, PyTree
+from jaxtyping import Array, DTypeLike, Float, Int, PRNGKeyArray
+
+# Internal Imports
+from polyscape.typing import ObsType, ActType
 
 
 # -------------------------------------------------------------------------
 #   Types
 # -------------------------------------------------------------------------
 
-ObsType: TypeAlias = PyTree[Float[Array, "n_axes"], "O"]
-ActType: TypeAlias = int
 RewardChoices: TypeAlias = Literal[
     "nonzero",
     "sparse",
@@ -61,6 +62,7 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
         max_escape_distance: float = 64.0,
         step_size: float = 1.0,
         use_stochastic_step_size: bool = False,
+        stochastic_step_size_scale: float = 1.0,
         distribution_concentrations: Int[Array, "n_dists n_axes"] | None = None,
         distribution_distribution: Float[Array, "n_dists"] | None = None,
         render_mode: str | None = None,
@@ -75,13 +77,14 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
             shape=(n_axes,),
             dtype=jnp.float32,
         )
-        self.action_space = spaces.Discrete(n=n_axes)
+        self.action_space = spaces.Discrete(n=n_axes)  # type: ignore
 
         self._n = n_axes
         self._deadline: int = t_deadline
         self._dtype = dtype
         self._step_size: float = step_size
         self._stochastic: bool = use_stochastic_step_size
+        self._step_size_scale: float = stochastic_step_size_scale
         self._min_dist: float = min_escape_distance
         self._max_dist: float = max_escape_distance
         self._reward_method: str = reward_method
@@ -102,7 +105,7 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
 
         self._t: int = NotImplemented
         self._goal: Float[Array, "n_axes"] = NotImplemented
-        self._state: Float[Array, "n_axes"] = NotImplemented
+        self._state: ObsType = NotImplemented
 
     def reset(
         self,
@@ -117,7 +120,7 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
         alphas = self._alphas[idx, :]
         dist = jax.random.dirichlet(kd, alphas, dtype=self._dtype)
         goal = (self._max_dist - self._min_dist) * (1 - dist) + self._min_dist
-        state = jnp.zeros_like(goal)
+        state = (jnp.zeros_like(goal),)
 
         self._t = 0
         self._goal = goal
@@ -132,7 +135,7 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
     def step(
         self,
         action: ActType,
-    ) -> tuple[ObsType, float, bool, bool, dict[str, Array]]:
+    ) -> tuple[ObsType, float, bool, bool, dict[str, Any]]:
         self._t += 1
         step = self.get_step_size()
         delta = jax.nn.one_hot(action, self._n, dtype=self._dtype) * step
@@ -146,7 +149,7 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
             "optimal-move": jnp.argmin(self._goal - self._state),
         }
 
-        return self._state, reward, done, truncate, info
+        return (self._state,), reward, done, truncate, info
 
     def render(self):
         raise NotImplementedError
@@ -162,7 +165,8 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
             return self._step_size
 
         rng = self.get_jax_rng_key()
-        return jax.random.gamma(rng, self._step_size, dtype=self._dtype).item()
+        base = jax.random.gamma(rng, self._step_size, dtype=self._dtype).item()
+        return base * self._step_size_scale
 
     def get_reward(self, action: ActType, done: bool, trunc: bool) -> float:
         if done:
@@ -172,7 +176,6 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
             return self._fail_reward
 
         was_optimal = action == jnp.argmin(self._goal - self._state)
-
         match self._reward_method:
             case "nonzero":
                 return -1 * self._step_reward
@@ -226,7 +229,7 @@ def make_alphas(
     max_val: int,
 ) -> Int[Array, "n_dist n_axes"]:
     assert max_val > min_val and max_val > 0
-    output = []
+    output: list[Int[Array, "n_dist"]] = []
     while len(output) < n_alphas:
         k, rng = jax.random.split(rng, 2)
         alphas = jax.random.randint(k, [n_axes], min_val, max_val)
