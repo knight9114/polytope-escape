@@ -1,0 +1,39 @@
+[project]
+name = "polyscape"
+description = "Polytope Escape environment and agent experiments"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    "jax >=0.4.0, <1.0.0",
+    "gymnasium >=0.26.0, <1.0.0",
+    "numpy >=1.21.0, <2.0.0",
+    "safetensors >=0.4.0, <1.0.0",
+    "tensorboard",
+    "tensorboardX >=2.0.0, <3.0.0",
+    "tqdm",
+]
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+dev = [
+    "python-lsp-server[all]",
+    "python-lsp-black",
+    "python-lsp-ruff",
+    "pylsp-rope",
+    "pytest",
+    "pytest-runner",
+    "pytest-sugar",
+    "pyclean",
+    "mypy",
+    "types-tqdm",
+]
+
+[[project.authors]]
+name = "Ian Dahlstrom"
+email = "ian.dahlstrom@gmail.com"
+
+[tool.setuptools_scm]
+
+[build-system]
+requires = ["setuptools>=61.0", "setuptools_scm>=8.0"]
+build-backend = "setuptools.build_meta"
