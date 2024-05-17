@@ -12,6 +12,7 @@ __all__: list[str] = ["init", "step"]
 # -------------------------------------------------------------------------
 
 # External Imports
+import jax
 from jax.tree_util import tree_map
 from jaxtyping import Array, Float, PyTree
 

@@ -47,14 +47,14 @@ def episode_objective_fn(
     rng = jax.random.key(seed)
     obs, _ = env.reset(seed=seed)
     done = False
-    step = 0
+    step = jnp.zeros(())
     loss = jnp.zeros(())
     discounted_returns = jnp.zeros(())
     total_rewards = jnp.zeros(())
 
     pbar = tqdm.trange(
-        getattr(env, "spec.max_episode_steps", 128),
-        desc="step",
+        getattr(env.unwrapped, "spec.max_episode_steps", 128),
+        desc="trajectory",
         leave=False,
     )
     while not done:
@@ -67,7 +67,7 @@ def episode_objective_fn(
         done = finished or truncated
         step += 1
 
-        discounted_returns = reward + (discounted_returns * discount_factor - v)
+        discounted_returns = reward + (discounted_returns * discount_factor - v[0])
         total_rewards += reward
         loss = loss - logprob
         pbar.update()
@@ -111,7 +111,7 @@ def train(
             params=params,
             grads=grads,
             optstate=optstate,
-            step=episode,
+            step=episode + 1,
             lr=lr_schedule_fn(episode),
         )
 

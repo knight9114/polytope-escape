@@ -42,30 +42,31 @@ def episode_objective_fn(
     params: PyTree[Float[Array, "..."], "A"],
     env: gym.Env,
     discount_factor: float,
+    epsilon: float,
     seed: int,
 ) -> tuple[PyTree[Float[Array, "..."], "A"], dict[str, Array]]:
     rng = jax.random.key(seed)
     obs, _ = env.reset(seed=seed)
     done = False
-    step = 0
+    step = jnp.zeros(())
     loss = jnp.zeros(())
     discounted_returns = jnp.zeros(())
     total_rewards = jnp.zeros(())
 
     pbar = tqdm.trange(
-        getattr(env, "spec.max_episode_steps", 128),
-        desc="step",
+        getattr(env.unwrapped, "spec.max_episode_steps", 128),
+        desc="trajectory",
         leave=False,
     )
     while not done:
         kfn, kpi, rng = jax.random.split(rng, 3)
         pi, _ = agent_fn(params, obs, rng=kfn)
         action = jax.random.categorical(kpi, pi)
-        logprob = jax.nn.log_softmax(pi, -1)[action]
+        logprob = jax.nn.log_softmax(pi + epsilon, -1)[action]
 
         obs, reward, finished, truncated, _ = env.step(action)
         done = finished or truncated
-        step += 1
+        step = step + 1
 
         discounted_returns = reward + (discounted_returns * discount_factor)
         total_rewards += reward
@@ -94,6 +95,7 @@ def train(
     logger: SummaryWriter | None = None,
     total_timesteps: int = 10_000,
     discount_factor: float = 0.99,
+    epsilon: float = 1e-8,
     seed: int | None = None,
 ) -> PyTree[Float[Array, "..."], "A"]:
     seed = secrets.randbits(30) if seed is None else seed
@@ -104,6 +106,7 @@ def train(
             params,
             env=env,
             discount_factor=discount_factor,
+            epsilon=epsilon,
             seed=seed + episode,
         )
 
@@ -111,12 +114,10 @@ def train(
             params=params,
             grads=grads,
             optstate=optstate,
-            step=episode,
+            step=episode + 1,
             lr=lr_schedule_fn(episode),
         )
 
         if logger is not None:
             for key, val in logdict.items():
-                if jnp.isinf(val) or jnp.isnan(val):
-                    print(f"FOUND INF/NAN: {episode=}  {key=}  {val=}")
                 logger.add_scalar(key, jnp.array(val).item(), episode)
