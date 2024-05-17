@@ -61,7 +61,7 @@ def actor_critic_agent_init(
     )
 
     ppi = init_layer(kpi, d_hidden_layers, n_actions)
-    pq = init_layer(kq, d_hidden_layers, 1)
+    pv = init_layer(kq, d_hidden_layers, 1)
 
     forward_fn = partial(
         actor_critic_agent_forward,
@@ -69,9 +69,10 @@ def actor_critic_agent_init(
         dropout=dropout,
     )
 
-    return (pstack, ppi, pq), forward_fn
+    return (pstack, ppi, pv), forward_fn
 
 
+@jax.jit
 def actor_critic_agent_forward(
     params: PyTree[Float[Array, "..."], "A"],
     obs: PyTree[Float[Array, "..."], "E"],
@@ -80,7 +81,7 @@ def actor_critic_agent_forward(
     rng: PRNGKeyArray | None = None,
     dropout: float = 0.0,
 ) -> tuple[Float[Array, "n_axes"], Float[Array, ""]]:
-    pstack, ppi, pq = params
+    pstack, ppi, pv = params
     n = len(pstack)
     keys: tuple[None, ...] | PRNGKeyArray = (
         (None,) * n if rng is None else jax.random.split(rng, n)
@@ -92,9 +93,9 @@ def actor_critic_agent_forward(
         x = jax.nn.silu(x)
 
     pi = linear_layer_forward(ppi, x, use_bias=use_bias)
-    q = linear_layer_forward(pq, x, use_bias=use_bias)
+    v = linear_layer_forward(pv, x, use_bias=use_bias)
 
-    return pi, q
+    return pi, v
 
 
 # -------------------------------------------------------------------------
