@@ -63,16 +63,17 @@ def actor_critic_agent_init(
     ppi = init_layer(kpi, d_hidden_layers, n_actions)
     pv = init_layer(kq, d_hidden_layers, 1)
 
-    forward_fn = partial(
-        actor_critic_agent_forward,
-        use_bias=use_bias,
-        dropout=dropout,
+    forward_fn = jax.jit(
+        partial(
+            actor_critic_agent_forward,
+            use_bias=use_bias,
+            dropout=dropout,
+        )
     )
 
     return (pstack, ppi, pv), forward_fn
 
 
-@jax.jit
 def actor_critic_agent_forward(
     params: PyTree[Float[Array, "..."], "A"],
     obs: PyTree[Float[Array, "..."], "E"],

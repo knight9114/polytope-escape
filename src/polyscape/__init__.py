@@ -7,7 +7,11 @@ register(
     entry_point=partial(
         PolytopeEscape,
         n_axes=3,
+        seed=42,
     ),
+    nondeterministic=False,
+    max_episode_steps=128,
+    disable_env_checker=True,
 )
 
 register(
@@ -16,7 +20,11 @@ register(
         PolytopeEscape,
         n_axes=10,
         n_polytope_distributions=3,
+        seed=42,
     ),
+    nondeterministic=False,
+    max_episode_steps=128,
+    disable_env_checker=True,
 )
 
 register(
@@ -27,5 +35,9 @@ register(
         n_polytope_distributions=3,
         use_stochastic_step_size=True,
         stochastic_step_size_scale=0.5,
+        seed=42,
     ),
+    nondeterministic=True,
+    max_episode_steps=128,
+    disable_env_checker=True,
 )

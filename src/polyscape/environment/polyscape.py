@@ -12,6 +12,7 @@ __all__: list[str] = ["PolytopeEscape"]
 # -------------------------------------------------------------------------
 
 # Standard Library Imports
+import secrets
 from typing import Any, Literal, Self, TypeAlias
 
 # External Imports
@@ -67,9 +68,11 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
         distribution_distribution: Float[Array, "n_dists"] | None = None,
         render_mode: str | None = None,
         dtype: DTypeLike = jnp.float32,
+        seed: int | None = None,
         **kwargs,
     ):
         assert render_mode is None
+        seed = secrets.randbits(30) if seed is None else seed
         super().__init__()
         self.observation_space = spaces.Box(
             low=0,
@@ -92,11 +95,11 @@ class PolytopeEscape(gym.Env[ObsType, ActType]):
         self._step_reward: float = step_reward
         self._win_reward: float = success_reward
         self._p_alpha = distribution_distribution or make_p_alphas(
-            rng=self.get_jax_rng_key(),
+            rng=jax.random.key(seed),
             n_alphas=n_polytope_distributions,
         )
         self._alphas = distribution_concentrations or make_alphas(
-            rng=self.get_jax_rng_key(),
+            rng=jax.random.key(seed + 1),
             n_alphas=n_polytope_distributions,
             n_axes=n_axes,
             min_val=min_distribution_concentration,

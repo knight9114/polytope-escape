@@ -21,7 +21,7 @@ import jax
 from jax import numpy as jnp
 from jaxtyping import Array, Float, PyTree
 import tqdm
-import wandb
+from tensorboardX import SummaryWriter  # type: ignore
 
 # Internal Imports
 from polyscape.typing import (
@@ -52,6 +52,11 @@ def episode_objective_fn(
     discounted_returns = jnp.zeros(())
     total_rewards = jnp.zeros(())
 
+    pbar = tqdm.trange(
+        getattr(env, "spec.max_episode_steps", 128),
+        desc="step",
+        leave=False,
+    )
     while not done:
         kfn, kpi, rng = jax.random.split(rng, 3)
         pi, v = agent_fn(params, obs, rng=kfn)
@@ -65,25 +70,28 @@ def episode_objective_fn(
         discounted_returns = reward + (discounted_returns * discount_factor - v)
         total_rewards += reward
         loss = loss - logprob
+        pbar.update()
 
+    pbar.close()
     loss = (loss / step) * discounted_returns
     info = {
-        "episode-length": step,
-        "total-rewards": total_rewards,
-        "discounted-returns": discounted_returns,
-        "loss": loss.item(),
+        "episode-length": jnp.array(step),
+        "total-rewards": jnp.array(total_rewards),
+        "discounted-returns": jnp.array(discounted_returns),
+        "loss": loss,
     }
 
     return loss, info
 
 
-def reinforce(
+def train(
     agent_fn: ActorCriticForwardFn,
     params: PyTree[Float[Array, "..."], "A"],
     optimizer_fn: OptimizerStepFn,
     optstate: PyTree[Float[Array, "..."], "O"],
     lr_schedule_fn: LearningRateScheduleFn,
     env: gym.Env,
+    logger: SummaryWriter | None = None,
     total_timesteps: int = 10_000,
     discount_factor: float = 0.99,
     seed: int | None = None,
@@ -92,8 +100,8 @@ def reinforce(
 
     for episode in tqdm.trange(total_timesteps, desc="episodes"):
         (_, logdict), grads = episode_objective_fn(
-            agent_fn=agent_fn,
-            params=params,
+            agent_fn,
+            params,
             env=env,
             discount_factor=discount_factor,
             seed=seed + episode,
@@ -107,4 +115,6 @@ def reinforce(
             lr=lr_schedule_fn(episode),
         )
 
-        wandb.log(logdict)
+        if logger is not None:
+            for key, val in logdict.items():
+                logger.add_scalar(key, jnp.array(val).item(), episode)

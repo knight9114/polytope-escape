@@ -31,7 +31,7 @@ def init(
     PyTree[Float[Array, "..."], "O"],
     OptimizerStepFn,
 ]:
-    return (), step
+    return (), jax.jit(step)
 
 
 def step(

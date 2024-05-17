@@ -15,6 +15,7 @@ __all__: list[str] = ["init", "step"]
 from functools import partial
 
 # External Imports
+import jax
 from jax import numpy as jnp
 from jax.tree_util import tree_map
 from jaxtyping import Array, Float, PyTree
@@ -51,7 +52,7 @@ def init(
         epsilon=epsilon,
     )
 
-    return (m, v), step_fn
+    return (m, v), jax.jit(step_fn)
 
 
 def step(
