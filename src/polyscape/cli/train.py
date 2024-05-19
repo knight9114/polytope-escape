@@ -11,21 +11,14 @@ from pathlib import Path
 import secrets
 
 # External Imports
-import gymnasium as gym
 import jax
 from tensorboardX import SummaryWriter  # type: ignore
 
 # Internal Imports
 from polyscape.api.train import reinforce, reinforce_with_baseline
 from polyscape.agents.v0.mlp import actor_critic_agent_init
+from polyscape.cli.utils import add_environment_arguments
 from polyscape.optim import adam, schedules
-
-
-# -------------------------------------------------------------------------
-#   Constants
-# -------------------------------------------------------------------------
-
-DIFFICULTIES: tuple[str, ...] = ("veryeasy", "easy", "medium")
 
 
 # -------------------------------------------------------------------------
@@ -83,6 +76,7 @@ def add_reinforce_arguments(parser: ArgumentParser):
     agent_subparsers = parser.add_subparsers(title="Agent Version")
     v0: ArgumentParser = agent_subparsers.add_parser("v0")
     add_experiment_arguments(v0)
+    add_environment_arguments(v0)
     add_actor_critic_v0_arguments(v0)
     add_args(v0)
 
@@ -104,6 +98,7 @@ def add_reinforce_with_baseline_arguments(parser: ArgumentParser):
     agent_subparsers = parser.add_subparsers(title="Agent Version")
     v0: ArgumentParser = agent_subparsers.add_parser("v0")
     add_experiment_arguments(v0)
+    add_environment_arguments(v0)
     add_actor_critic_v0_arguments(v0)
     add_args(v0)
 
@@ -111,15 +106,12 @@ def add_reinforce_with_baseline_arguments(parser: ArgumentParser):
 def add_experiment_arguments(parser: ArgumentParser):
     parser.set_defaults(
         logger_factory=logger_from_namespace,
-        environment_factory=lambda args: gym.make(make_env_name(args.difficulty)),
     )
 
     exp = parser.add_argument_group("Experiment Arguments")
-    exp.add_argument("--difficulty", choices=DIFFICULTIES, default="veryeasy")
     exp.add_argument("--root-directory", type=Path, default=Path("./experiments"))
     exp.add_argument("--agent-name", default="agent")
     exp.add_argument("--agent-version")
-    exp.add_argument("--seed", type=int)
 
 
 def add_actor_critic_v0_arguments(parser: ArgumentParser):
@@ -176,19 +168,3 @@ def logger_from_namespace(args: Namespace) -> SummaryWriter:
         ).as_posix(),
         flush_secs=30,
     )
-
-
-def make_env_name(d: str) -> str:
-    base = "PolytopeEscape{}-v0"
-    match d:
-        case "veryeasy":
-            return base.format("VeryEasy")
-
-        case "easy":
-            return base.format("Easy")
-
-        case "medium":
-            return base.format("Medium")
-
-        case _:
-            raise ValueError
