@@ -70,6 +70,7 @@ def step(
     PyTree[Float[Array, "..."], "A"],
     PyTree[Float[Array, "..."], "O"],
 ]:
+    step = step + 1
     m, v = optstate
     m = tree_map(lambda g, t: beta_1 * t + (1 - beta_1) * g, grads, m)
     v = tree_map(lambda g, t: beta_1 * t + (1 - beta_1) * g**2, grads, v)

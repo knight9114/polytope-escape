@@ -111,7 +111,7 @@ def train(
             params=params,
             grads=grads,
             optstate=optstate,
-            step=episode + 1,
+            step=episode,
             lr=lr_schedule_fn(episode),
         )
 
