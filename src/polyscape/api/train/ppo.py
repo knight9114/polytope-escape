@@ -49,6 +49,7 @@ def episode_objective_fn(
     gae_factor: float = 0.95,
     value_fn_factor: float = 1.0,
     entropy_fn_factor: float = 0.0,
+    epsilon: float = 1e-8,
 ) -> tuple[PyTree[Float[Array, "..."], "A"], dict[str, Array]]:
     k1, k2 = jax.random.split(rng, 2)
     obs_, actions_, rewards_, next_obs_, old_probs_a_, masks_ = zip(*trajectory)
@@ -72,7 +73,7 @@ def episode_objective_fn(
     )
     advantages = jnp.flip(advantages, 0)
 
-    new_probs = jax.nn.softmax(pi, -1)
+    new_probs = jax.nn.softmax(pi + epsilon, -1)
     new_probs_a = new_probs[jnp.arange(pi.shape[0]), actions]
     ratios = jnp.exp(jnp.log(new_probs_a) - jnp.log(old_probs_a)).reshape(-1, 1)
     surrogate = -jnp.minimum(
@@ -80,7 +81,7 @@ def episode_objective_fn(
         jnp.clip(ratios, 1 - clipping_bound, 1 + clipping_bound) * advantages,
     ).mean()
     value_fn_loss = value_fn_factor * jnp.power(v - td_targets, 2).mean()
-    entropy = jax.scipy.special.entr(new_probs).mean()
+    entropy = jax.scipy.special.entr(new_probs + epsilon).mean()
     entropy_loss = entropy_fn_factor * entropy
 
     loss = surrogate + value_fn_loss + entropy_loss
@@ -203,6 +204,9 @@ def train(
 
             else:
                 for key, val in logdict.items():
+                    if jnp.any(jnp.isnan(val)):
+                        print(f"DEBUG: {metrics=}  {logdict=}")
+                        raise ValueError
                     metrics[key] += (val - metrics[key]) / (epoch + 1)
 
             optstep += 1

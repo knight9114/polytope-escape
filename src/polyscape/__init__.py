@@ -34,7 +34,7 @@ register(
         n_axes=10,
         n_polytope_distributions=3,
         use_stochastic_step_size=True,
-        stochastic_step_size_scale=0.5,
+        stochastic_step_size_scale=1.0,
         seed=42,
     ),
     nondeterministic=True,
